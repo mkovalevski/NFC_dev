@@ -1,37 +1,59 @@
-#include "main.h"
-#include "nfc_config.h"
+#include "pn532.h"
 
-extern uint8_t nfc_rx_data[8];
-extern uint8_t nfc_tx_data[8];
-
+uint8_t matched;
 uint32_t i2c_timeout;
 
-void read_nfc_data(void){
-	__NFC_I2C->CR1 |= I2C_CR1_PE;
+const uint8_t PN532_ACK[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
 
-	__NFC_DMA->CR &=~ __DMA_ENABLE;
-	__NFC_DMA->NDTR = 8;
-	__NFC_DMA->M0AR = (uint32_t)nfc_rx_data;
-	__NFC_DMA->PAR = (uint32_t)&(I2C1->RXDR);
-	__NFC_DMA->CR |= __DMA_ENABLE;
+extern I2C_HandleTypeDef hi2c1;
+extern uint8_t nfc_rx_data[64];
+extern uint8_t nfc_tx_data[64];
 
-	__NFC_I2C->CR1 |= I2C_CR1_RXDMAEN;
-
-
-	__NFC_I2C->CR2 = (8<<I2C_CR2_NBYTES_Pos) | (__I2C_READ<<I2C_CR2_RD_WRN_Pos) | (__PN532_ADDR<<1) | I2C_CR2_START | I2C_CR2_AUTOEND;
-	i2c_timeout = 0x1FFFF;
-	while (i2c_timeout) {
-		i2c_timeout--;
-		if (__NFC_I2C->ISR & (I2C_ISR_BUSY)) break;
+void get_firmware_version(void){
+	uint8_t frame[__PN532_FRAME_MAX_LENGTH];
+	uint8_t checksum = 0;
+	frame[0] = __PN532_PREAMBLE;
+	frame[1] = __PN532_STARTCODE1;
+	frame[2] = __PN532_STARTCODE2;
+	frame[3] = 1; //LEN length of command (1 byte)
+	frame[4] = (~frame[3] + 1); //LCS length of CRC. Lower byte of [LEN + LCS] = 0x00
+	frame[5] = 0xD4;
+	frame[6] = __PN532_COMMAND_GETFIRMWAREVERSION;
+	for (uint8_t i = 0; i < 7; i++) {
+		checksum += frame[i];
 	}
+	frame[7] = ~checksum & 0xFF;
+	frame[8] = __PN532_POSTAMBLE;
+	//send command
+	if (HAL_I2C_Master_Transmit(&hi2c1, __PN532_ADDR, frame, frame[3]+8, __PN532_TIMEOUT) != HAL_OK){
+//		Error_Handler();
+	}
+	//wait for RDY status frame
+	if (!wait_ready()){
+//		Error_Handler();
+	}
+	//wait for ACK frame
+	//TODO
 
-	__NFC_I2C->ISR = 0;
-
-	DMA1->LIFCR = 0x3F;
-	__NFC_DMA->CR &=~ __DMA_ENABLE;
+	//wait for data frame
+	//TODO
 }
 
-void write_nfc_data(void){
 
+void read_pn532_data(uint8_t * pData, uint16_t len){
+	HAL_I2C_Master_Receive(&hi2c1, 0x49, pData, len, __PN532_TIMEOUT);
 }
 
+uint8_t wait_ready(void){
+//    uint8_t status[] = {0x00, 0x00};
+    uint32_t tickstart = HAL_GetTick();
+    while (HAL_GetTick() - tickstart < __PN532_TIMEOUT*2) {
+    	read_pn532_data(nfc_rx_data, sizeof(nfc_rx_data));
+//        if (nfc_rx_data[0] == 0x01 || nfc_rx_data[1]) {
+//            return 1;
+//        } else {
+            HAL_Delay(5);
+//        }
+    }
+    return 0;
+}
