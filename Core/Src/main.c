@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "pn532.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,17 +43,14 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-//just preparation for DCache enabling
-__attribute__((section(".nfc_rx_buf"), used)) uint8_t nfc_rx_data[64];
-uint8_t nfc_tx_data[64];
-uint8_t nfc_flag;
+uint8_t pn532_rx_data[64];
+uint8_t pn532_fw_version[6];
+uint8_t pn532_int_flag;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void read_pn532_data(void);
-void get_firmware_version(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -68,9 +65,6 @@ void get_firmware_version(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	for (uint8_t i=0; i<sizeof(nfc_rx_data); i++){
-		nfc_rx_data[i] = 0;
-	}
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -93,7 +87,6 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(TEST_LED_GPIO_Port, TEST_LED_Pin, GPIO_PIN_SET);
   get_firmware_version();
   /* USER CODE END 2 */
 
@@ -101,7 +94,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  get_firmware_version();
+//	  if (pn532_int_flag){
+//		  read_pn532_data(pn532_rx_data, 64);
+//		  pn532_int_flag = 0;
+//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -180,6 +176,10 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+	  HAL_GPIO_WritePin(TEST_LED_GPIO_Port, TEST_LED_Pin, GPIO_PIN_SET);
+	  HAL_Delay(1000);
+	  HAL_GPIO_WritePin(TEST_LED_GPIO_Port, TEST_LED_Pin, GPIO_PIN_RESET);
+	  HAL_Delay(1000);
   }
   /* USER CODE END Error_Handler_Debug */
 }
