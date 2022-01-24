@@ -46,6 +46,7 @@
 uint8_t pn532_rx_data[64];
 uint8_t pn532_fw_version[6];
 uint8_t pn532_int_flag;
+uint8_t rx_data_size;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -87,13 +88,14 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  get_firmware_version();
+  rx_data_size = get_firmware_version();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
 //	  if (pn532_int_flag){
 //		  read_pn532_data(pn532_rx_data, 64);
 //		  pn532_int_flag = 0;
